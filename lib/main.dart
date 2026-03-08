@@ -45,8 +45,10 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Only initialize push notifications on mobile platforms.
+    // Initialize push notifications for all platforms (Android, iOS, and Web)
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      await FirebaseApi().initNotifications();
+    } else if (kIsWeb) {
       await FirebaseApi().initNotifications();
     }
   } catch (e) {

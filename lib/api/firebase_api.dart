@@ -7,10 +7,15 @@ import 'package:ruko_mobile_app/api_service.dart';
 import 'package:ruko_mobile_app/main.dart';
 import 'package:ruko_mobile_app/screens/task_detail_screen.dart';
 import 'package:ruko_mobile_app/services/navigation_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FirebaseApi {
   final _firebaseMessaging = FirebaseMessaging.instance;
   final _apiService = ApiService();
+
+  // VAPID key for web push notifications
+  static const String _vapidKey =
+      'BJSLsDXYXcDuFxouaVzR6tLX8kZ68Ry07DAj0g0wcZIEyhxY-pMdI-dUZMpYhKHJWKs8iJP3koDL3lA6wpwPLcQ';
 
   void _handleMessage(RemoteMessage? message) {
     if (message == null) return;
@@ -32,15 +37,14 @@ class FirebaseApi {
     await _firebaseMessaging.requestPermission();
 
     // 2. Get the unique device token (FCM token)
-    // ✅ THIS IS THE FINAL, CRITICAL FIX
-    // We provide the VAPID key, which is required for web push notifications.
-    final fcmToken = await _firebaseMessaging.getToken(
-      vapidKey:
-          'BJSLsDXYXcDuFxouaVzR6tLX8kZ68Ry07DAj0g0wcZIEyhxY-pMdI-dUZMpYhKHJWKs8iJP3koDL3lA6wpwPLcQ',
-    );
+    // Use VAPID key for web, not for Android/iOS
+    final fcmToken = kIsWeb
+        ? await _firebaseMessaging.getToken(vapidKey: _vapidKey)
+        : await _firebaseMessaging.getToken();
 
     if (kDebugMode) {
-      print('FCM Token: $fcmToken'); // For debugging
+      print('FCM Token: $fcmToken');
+      print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
     }
 
     // 3. Send the token to your Laravel backend
@@ -54,10 +58,12 @@ class FirebaseApi {
       }
     }
 
-    // Handle notification that opened the app from a terminated state
-    final initialMessage = await _firebaseMessaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleMessage(initialMessage);
+    // Handle notification that opened the app from a terminated state (mobile only)
+    if (!kIsWeb) {
+      final initialMessage = await _firebaseMessaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleMessage(initialMessage);
+      }
     }
 
     // 4. Listen for incoming messages while the app is in the foreground
